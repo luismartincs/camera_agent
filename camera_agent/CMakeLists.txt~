@@ -1,0 +1,11 @@
+cmake_minimum_required(VERSION 2.8.12)
+
+project(ARma_demo)
+
+file(GLOB_RECURSE SRC_FILES pattern.h patterndetector.h cameraparams.h pattern.cpp patterndetector.cpp ARma_demo.cpp)
+
+find_package(OpenCV REQUIRED)
+include_directories(${OpenCV_INCLUDE_DIRS})
+
+add_executable(ARma_demo ${SRC_FILES})
+target_link_libraries(ARma_demo ${OpenCV_LIBS})
