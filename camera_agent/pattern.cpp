@@ -111,6 +111,8 @@ namespace ARma {
 			cv::line(frame, model2ImagePts.at(i%4), model2ImagePts.at((i+1)%4), cvScalar(0,255,0), 3);
 		}
 		
+		 cv::circle(frame, this->center, 10, Scalar(0,255,0),1 );
+		 
 		cv:putText(frame, "["+to_string(this->ix)+","+to_string(this->iy)+","+this->orientationStr+"]",this->center,FONT_HERSHEY_SIMPLEX, 0.5, Scalar(255,0,0),2);
         
 		cv::line(frame, model2ImagePts.at(2), model2ImagePts.at(3), cvScalar(0,0,255), 3);
