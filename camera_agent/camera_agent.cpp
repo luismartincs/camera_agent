@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include "cameraparams.h"
@@ -11,9 +12,9 @@ using namespace ARma;
 #define PAT_SIZE 64//equal to pattern_size variable (see below)
 #define SAVE_VIDEO 0 //if true, it saves the video in "output.avi"
 #define NUM_OF_PATTERNS 3// define the number of patterns you want to use
-#define isIPCam true
-#define RES_WIDTH 1920
-#define RES_HEIGHT 1080
+#define isIPCam false
+#define RES_WIDTH 640
+#define RES_HEIGHT 480
 #define ROWS 5
 #define COLS 9
 
@@ -35,9 +36,14 @@ struct MapCell{
 unsigned int pixelSizeW = RES_WIDTH/COLS;
 unsigned int pixelSizeH = RES_HEIGHT/ROWS;
 
+long double prevTime = time(0) * 1000;
+
+
 static int loadPattern(const string , std::vector<cv::Mat>& , int& );
 
 int main(int argc, char** argv){
+
+    std::ofstream file;
 
 	std::vector<cv::Mat> patternLibrary;
 	std::vector<Pattern> detectedPattern;
@@ -107,7 +113,11 @@ int main(int argc, char** argv){
 		std::cout << "¡Conexion exitosa!" << std::endl;
 	} else {
 
-		capture = cvCaptureFromCAM(500);
+		capture = cvCaptureFromCAM(0);
+		
+		//cvSetCaptureProperty(capture,CV_CAP_PROP_FOURCC,CV_FOURCC('M','J','P','G'));
+		//cvSetCaptureProperty( capture,CV_CAP_PROP_FRAME_WIDTH, 1024 );
+		//cvSetCaptureProperty( capture,CV_CAP_PROP_FRAME_HEIGHT, 768 );
 	}
 
 #if (SAVE_VIDEO)
@@ -188,12 +198,33 @@ int main(int argc, char** argv){
 		        putText(imgMat, "O", Point2f(50,RES_HEIGHT/2), FONT_HERSHEY_PLAIN, 1,  Scalar(0,255,0),1);
 		        
 
+		        long double currentTime = time(0)*1000;
+        
+			        if((currentTime - prevTime) >= 5000){
+			            prevTime = currentTime;
+			            
+			            file.open ("../log/agents.txt");
+
+			            for (unsigned int i =0; i<detectedPattern.size(); i++){
+			                Pattern *patternDetected = &detectedPattern.at(i);
+			                
+			                file<<""<< patternDetected->id<<","<<patternDetected->ix<<","<<patternDetected->iy<<","<<patternDetected->center.x<<","<<patternDetected->center.y<<endl;
+			                
+			                std::cout<<"{"<< patternDetected->id<<","<<patternDetected->ix<<","<<patternDetected->iy<<"}"<<endl;
+			                file.flush();
+		                
+		            	}
+		        	}
+        
+           			file.close();
+
+
 		#if (SAVE_VIDEO)
 				cvWriteFrame(video_writer, &((IplImage) imgMat));
 		#endif
 				imshow("result", imgMat);
 				
-				cvWaitKey(30);
+				cvWaitKey(100);
 
 				detectedPattern.clear();
 
