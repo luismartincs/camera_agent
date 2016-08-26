@@ -47,7 +47,7 @@ void PatternDetector::detect(const Mat& frame, const Mat& cameraMatrix, const Ma
 	convertAndBinarize(frame, binImage, grayImage, mode);
 	binImage.copyTo(binImage2);
 
-//	imshow("binaryImage" , binImage2);
+	//imshow("binaryImage" , binImage2);
 
 	int avsize = (binImage.rows+binImage.cols)/2;
 
@@ -56,6 +56,8 @@ void PatternDetector::detect(const Mat& frame, const Mat& cameraMatrix, const Ma
 
 	//find contours in binary image
 	cv::findContours(binImage2, contours, CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE);
+
+	//imshow("binaryImage" , binImage2);
 
 	unsigned int i;
 	Point p;
@@ -116,6 +118,8 @@ void PatternDetector::detect(const Mat& frame, const Mat& cameraMatrix, const Ma
 				//refine corners
 				cornerSubPix(grayImage, refinedVertices, Size(3,3), Size(-1,-1), TermCriteria(1, 3, 1));
 				
+				//imshow("binaryImage" , grayImage);
+
 				//rotate vertices based on upper left vertex; this gives you the most trivial homogrpahy 
 				for(j=0; j<4;j++){
 					roi2DPts[j] = Point2f(refinedVertices.at((4+v1-j)%4).x - pMinX, refinedVertices.at((4+v1-j)%4).y - pMinY);
