@@ -1,13 +1,12 @@
-/**
- * Simple shape detector program.
- * It loads an image and tries to find simple shapes (rectangle, triangle, circle, etc) in it.
- * This program is a modified version of `squares.cpp` found in the OpenCV sample dir.
- */
  /*
+ 
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <cmath>
 #include <iostream>
+ #include <math.h>       
+
+#define PI 3.14159265
 
 using namespace std;
 using namespace cv;
@@ -35,8 +34,26 @@ void setLabel(cv::Mat& im, const std::string label, std::vector<cv::Point>& cont
 	cv::Rect r = cv::boundingRect(contour);
 
 	cv::Point pt(r.x + ((r.width - text.width) / 2), r.y + ((r.height + text.height) / 2));
-	cv::rectangle(im, pt + cv::Point(0, baseline), pt + cv::Point(text.width, -text.height), CV_RGB(255,255,255), CV_FILLED);
+
+	cv::Point pt2(r.x + (r.width/2), r.y + (r.height/2));
+	
+	//cv::rectangle(im, pt + cv::Point(0, baseline), pt + cv::Point(text.width, -text.height), CV_RGB(255,255,255), CV_FILLED);
+	
+	circle(im, pt2, 20, CV_RGB(255,255,255), 2, 8, 0 );
+
 	cv::putText(im, label, pt, fontface, scale, CV_RGB(0,0,0), thickness, 8);
+}
+
+void getCenter( std::vector<cv::Point>& contour,cv::Point *pt){
+
+	cv::Rect r = cv::boundingRect(contour);
+	cv::Point cPt(r.x + (r.width/2), r.y + (r.height/2));
+	*pt = cPt;
+}
+
+double m(cv::Point p1, cv::Point p2){
+
+	return double(p2.y - p1.y) / double(p2.x - p1.x);
 }
 
 int main()
@@ -47,7 +64,7 @@ int main()
 
 	CvCapture* capture;
 	VideoCapture vcap;
-
+	RNG rng(12345);
 	//Se define la IP de la camara remota
 	
 	if(isIPCam) {
@@ -60,38 +77,68 @@ int main()
 		}
 		std::cout << "¡Conexion exitosa!" << std::endl;
 	} else {
-		capture = cvCaptureFromCAM(0);
+		//capture = cvCaptureFromCAM(0);
+		if(!vcap.open(0)) {
+			std::cout << "Error opening device index" << std::endl;
+			return -1;
+		}
+
 	}
 
 	while(1){
 
-		if(isIPCam) {
-					if(!vcap.read(src)) {
-						std::cout << "No frame" << std::endl;
-						cv::waitKey();
-					}
-		} else {
-			img = cvQueryFrame(capture);
-			src = cv::cvarrToMat(img);
 
+		if(!vcap.read(src)) {
+			std::cout << "No frame" << std::endl;
+			cv::waitKey();
 		}
 
+
+		//color
+
+		 Mat imgHSV;
+
+		 cvtColor(src, imgHSV, COLOR_BGR2HSV); //Convert the captured frame from BGR to HSV
+		 
+		 Mat imgThresholded;
+
+		 inRange(imgHSV, Scalar(0, 100, 100),Scalar(10, 255, 255), imgThresholded); //RED
+		 //inRange(imgHSV, Scalar(110,50,50),Scalar(130,255,255), imgThresholded); //BLUE
+		 //inRange(imgHSV, Scalar(45,100,50),Scalar(75,255,255), imgThresholded);  //GREEN
+
+		   //imshow("Thresholded Image", imgThresholded);
+
+		//
 		Mat gray;
 		cvtColor(src, gray, CV_BGR2GRAY);
 
 		Mat bw;
-		Canny(gray, bw, 0, 50, 5);
+		blur( gray, bw, Size(3,3) );
+        Canny(gray, bw, 80, 240, 3);
+
+		//Canny(gray, bw, 0, 50, 5);
 		cv::imshow("dst", bw);
 
 		std::vector<std::vector<cv::Point> > contours;
 		cv::findContours(bw.clone(), contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
-
+		
 
 		std::vector<cv::Point> approx;
 		cv::Mat dst = src.clone();
 
+
+		vector<Point2f> centers( contours.size() );
+		vector<float> radius( contours.size() );
+
+		//
+
+		vector<Point2f> circulos;
+		vector<Point2f> rectangulos;
+
+
 		for (int i = 0; i < contours.size(); i++)
 		{
+
 			// Approximate contour with accuracy proportional
 			// to the contour perimeter
 			cv::approxPolyDP(cv::Mat(contours[i]), approx, cv::arcLength(cv::Mat(contours[i]), true)*0.02, true);
@@ -99,10 +146,18 @@ int main()
 			// Skip small or non-convex objects 
 			if (std::fabs(cv::contourArea(contours[i])) < 100 || !cv::isContourConvex(approx))
 				continue;
+			
+				Scalar color = Scalar( rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255) );
+       			drawContours( dst, contours, i, color, 2, 8);// hierarchy, 0, Point() );
+
+       			//minEnclosingCircle( (Mat)approx, centers[i], radius[i] );
+       			//circle( dst, centers[i], 20, color, 2, 8, 0 );
 
 			if (approx.size() == 3)
 			{
+				//Moments(contours[i]);
 				//setLabel(dst, "TRI", contours[i]);    // Triangles
+
 			}
 			else if (approx.size() >= 4 && approx.size() <= 6)
 			{
@@ -123,12 +178,23 @@ int main()
 
 				// Use the degrees obtained above and the number of vertices
 				// to determine the shape of the contour
-				if (vtc == 4 && mincos >= -0.1 && maxcos <= 0.3)
-					setLabel(dst, "RECT", contours[i]);
-				else if (vtc == 5 && mincos >= -0.34 && maxcos <= -0.27)
-					setLabel(dst, "PENTA", contours[i]);
-				else if (vtc == 6 && mincos >= -0.55 && maxcos <= -0.45)
-					setLabel(dst, "HEXA", contours[i]);
+				if (vtc == 4 && mincos >= -0.1 && maxcos <= 0.3){
+
+					//setLabel(dst, "RECT", contours[i]);
+
+
+					//Centro del rectangulo
+
+					cv::Point cPt;
+					getCenter(contours[i],&cPt);
+					
+					rectangulos.push_back(cPt);
+				
+				}else if (vtc == 5 && mincos >= -0.34 && maxcos <= -0.27){
+					//setLabel(dst, "PENTA", contours[i]);
+				}else if (vtc == 6 && mincos >= -0.55 && maxcos <= -0.45){
+					//setLabel(dst, "HEXA", contours[i]);
+				}
 			}
 			else
 			{
@@ -138,12 +204,73 @@ int main()
 				cv::Rect r = cv::boundingRect(contours[i]);
 				int radius = r.width / 2;
 
-				if (std::abs(1 - ((double)r.width / r.height)) <= 0.2 &&
-				    std::abs(1 - (area / (CV_PI * std::pow(radius, 2)))) <= 0.2)
-					setLabel(dst, "CIR", contours[i]);
+				if (std::abs(1 - ((double)r.width / r.height)) <= 0.2 && std::abs(1 - (area / (CV_PI * std::pow(radius, 2)))) <= 0.2){
+					
+					//setLabel(dst, "CIR", contours[i]);
+
+
+					//Centro del circulo
+
+					cv::Point cPt;
+					getCenter(contours[i],&cPt);
+
+					circulos.push_back(cPt);
+				}
 			}
 
 		}
+
+
+		if (circulos.size() == rectangulos.size())
+		{
+
+			for (int i = 0; i < circulos.size(); i++){
+				
+				double shtDist = 10000;
+				cv::Point rectPt;
+				
+				for (int j = 0; j < rectangulos.size(); j++){
+					
+					double dist = cv::norm(circulos[i]-rectangulos[j]);
+
+					if(dist < shtDist){
+						shtDist = dist;
+						rectPt = rectangulos[j];
+					}
+				}
+
+				if(shtDist == 10000)continue;
+
+				circle(dst,circulos[i],20, CV_RGB(255,255,255), 2, 8, 0 );
+				circle(dst,rectPt,20, CV_RGB(255,255,255), 2, 8, 0 );
+				line(dst,circulos[i],rectPt,CV_RGB(255,255,255), 2, 8, 0 );
+
+				double pendiente = m(circulos[i],rectPt);
+				double angulo = atan (pendiente) * 180 / PI;
+
+				if(angulo<0)angulo = angulo*-1;
+
+				if(angulo > 45 && angulo <= 90){
+					if(circulos[i].y < rectPt.y){
+						cv::putText(dst, "N", circulos[i], cv::FONT_HERSHEY_SIMPLEX, 0.6, CV_RGB(255,255,255), 1, 8);
+					}else{
+						cv::putText(dst, "S", circulos[i], cv::FONT_HERSHEY_SIMPLEX, 0.6, CV_RGB(255,255,255), 1, 8);
+					}
+				}else{
+					if (circulos[i].x < rectPt.x)
+					{
+						cv::putText(dst, "W", circulos[i], cv::FONT_HERSHEY_SIMPLEX, 0.6, CV_RGB(255,255,255), 1, 8);
+					}else{
+						cv::putText(dst, "E", circulos[i], cv::FONT_HERSHEY_SIMPLEX, 0.6, CV_RGB(255,255,255), 1, 8);
+
+					}
+				}
+
+			}
+
+		}
+
+
 
 		//cv::imshow("src", src);
 		cv::imshow("dst", dst);
@@ -170,16 +297,16 @@ using namespace ARma;
 #define SAVE_VIDEO 0 //if true, it saves the video in "output.avi"
 #define NUM_OF_PATTERNS 4// define the number of patterns you want to use
 #define isIPCam false
-#define RES_WIDTH 640
-#define RES_HEIGHT 480
-#define ROWS 5
-#define COLS 9
+#define RES_WIDTH 640 //1280
+#define RES_HEIGHT 480 //768
+#define ROWS 10
+#define COLS 15
 
 //1920*1080
 
-string filename1="../patterns/pattern1.png";//id=1
-string filename2="../patterns/pattern2.png";//id=2
-string filename3="../patterns/pattern3.png";//id=3
+string filename1="../patterns/pattern4.png";//id=1
+string filename2="../patterns/pattern5.png";//id=2
+string filename3="../patterns/pattern6.png";//id=3
 string filename4="../patterns/pattern10.png";//id=3
 
 struct MapCell{
@@ -245,7 +372,7 @@ int main(int argc, char** argv){
 	double adapt_thresh = 5;//non-used with FIXED_THRESHOLD mode
 	int adapt_block_size = 45;//non-used with FIXED_THRESHOLD mode
 	double confidenceThreshold = 0.35;
-	int mode = 2;//1:FIXED_THRESHOLD, 2: ADAPTIVE_THRESHOLD
+	int mode = 1;//1:FIXED_THRESHOLD, 2: ADAPTIVE_THRESHOLD
 
 	PatternDetector myDetector( fixed_thresh, adapt_thresh, adapt_block_size, confidenceThreshold, norm_pattern_size, mode);
 
@@ -350,9 +477,10 @@ int main(int argc, char** argv){
 			            for (unsigned int i =0; i<detectedPattern.size(); i++){
 			                Pattern *patternDetected = &detectedPattern.at(i);
 			                
-			                file<<""<< patternDetected->id<<","<<patternDetected->ix<<","<<patternDetected->iy<<","<<patternDetected->center.x<<","<<patternDetected->center.y<<endl;
+			                file<<""<< patternDetected->id<<","<<patternDetected->ix<<","<<patternDetected->iy<<","<<patternDetected->center.x<<","<<patternDetected->center.y<<","<<patternDetected->orientationStr<<endl;
 			                
-			                std::cout<<"{"<< patternDetected->id<<","<<patternDetected->ix<<","<<patternDetected->iy<<"}"<<endl;
+			                std::cout<<""<< patternDetected->id<<","<<patternDetected->ix<<","<<patternDetected->iy<<","<<patternDetected->center.x<<","<<patternDetected->center.y<<","<<patternDetected->orientationStr<<endl;
+			                
 			                file.flush();
 		                
 		            	}

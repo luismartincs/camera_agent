@@ -26,18 +26,18 @@ namespace ARma {
 
 	void Pattern::showPattern()
 	{
-		/*cout << "Pattern ID: " << id << endl;
+		cout << "Pattern ID: " << id << endl;
 		cout << "Pattern Size: " << size << endl;
 		cout << "Pattern Confedince Value: " << confidence << endl;
 		cout << "Pattern Orientation: " << orientation << endl;
-		*/
+		
 		rotationMatrix(rotVec, rotMat);
-		/*
+		
 		cout << "Exterior Matrix (from pattern to camera): " << endl;
 		for (int i = 0; i<3; i++){
 		cout << rotMat.at<float>(i,0) << "\t" << rotMat.at<float>(i,1) << "\t" << rotMat.at<float>(i,2) << " |\t"<< transVec.at<float>(i,0) << endl;
 		}
-		*/
+		
 	}
 
 	void Pattern::getExtrinsics(int patternSize, const Mat& cameraMatrix, const Mat& distortions)
